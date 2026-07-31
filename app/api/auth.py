@@ -1,6 +1,12 @@
 from fastapi import APIRouter, Depends
-from app.schemas.user import UserCreate
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.models.user import User
+from app.schemas.user import UserCreate, UserLogin
+from app.schemas.user_response import UserResponse
 from app.services.auth_service import AuthService, get_auth_service
+from app.utils.security import (hash_password, verify_password)
 
 
 router = APIRouter(
@@ -13,11 +19,68 @@ def test():
         "message": "Authentication module is working."
     }
 
-@router.post("/register")
+@router.post("/register", response_model=UserResponse)
 def register_user(
     user: UserCreate,
-    auth_service: AuthService = Depends(get_auth_service)):
-    return auth_service.register_user(user)
+    db: Session = Depends(get_db)):
+
+    new_user = User(
+        full_name=user.full_name,
+        email=user.email,
+        password=hash_password(user.password)
+    )
+    db.add(new_user)
+    try:
+        db.commit()
+        db.refresh(new_user)
+
+    except IntegrityError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=409,
+            detail="Email already exists."
+        )
+
+    return new_user
+
+@router.post("/login")
+def login(
+    user: UserLogin,
+    db: Session =Depends(get_db)
+):
+    db_user = (
+        db.query(User)
+        .filter(User.email == user.email)
+        .first()
+    )
+
+    if db_user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password."
+        )
+
+    if not verify_password(
+        user.password,
+        db_user.password
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password."
+        )
+
+    return {
+        "message": "Login successful.",
+        "user": {
+            "id": db_user.id,
+            "full_name": db_user.full_name,
+            "email": db_user.email
+        }
+    }
+    
+
+
 
 @router.get("/users/{user_id}")
 def get_user(
