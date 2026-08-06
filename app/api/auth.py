@@ -7,6 +7,9 @@ from app.schemas.user import UserCreate, UserLogin
 from app.schemas.user_response import UserResponse
 from app.services.auth_service import AuthService, get_auth_service
 from app.utils.security import (hash_password, verify_password)
+from app.core.security import (create_access_token, get_current_user, verify_access_token)
+from fastapi.security import OAuth2PasswordRequestForm
+
 
 
 router = APIRouter(
@@ -46,12 +49,12 @@ def register_user(
 
 @router.post("/login")
 def login(
-    user: UserLogin,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session =Depends(get_db)
 ):
     db_user = (
         db.query(User)
-        .filter(User.email == user.email)
+        .filter(User.email == form_data.username)
         .first()
     )
 
@@ -62,7 +65,7 @@ def login(
         )
 
     if not verify_password(
-        user.password,
+        form_data.password,
         db_user.password
     ):
         raise HTTPException(
@@ -70,16 +73,28 @@ def login(
             detail="Invalid email or password."
         )
 
-    return {
-        "message": "Login successful.",
-        "user": {
-            "id": db_user.id,
-            "full_name": db_user.full_name,
-            "email": db_user.email
+    access_token = create_access_token(
+        data={
+            "sub": db_user.email
         }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
     }
     
+@router.get("/me")
+def get_me(
+    current_user: User = Depends(get_current_user)
+):
 
+    return {
+        "id": current_user.id,
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "phone_number": current_user.phone_number
+    }
 
 
 @router.get("/users/{user_id}")
