@@ -9,6 +9,7 @@ from app.core.config import DATABASE_URL
 
 # Import all models
 from app.models.user import User
+from app.models.document import Document
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
