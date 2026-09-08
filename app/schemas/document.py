@@ -1,12 +1,15 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-class DocumentBase(BaseModel):
-    id: str
-    title: str
-    filename: str
-    owner_id: str
-    created_at: datetime
+class DocumentResponse(BaseModel):
+    id: int
+    original_filename: str
+    stored_filename: str
+    file_path: str
+    file_size: int
+    content_type: str
+    uploaded_at: datetime
+    owner_id: int
 
     model_config = {
         "from_attributes": True,
