@@ -1,7 +1,9 @@
+from typing import List
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
+from app.models.document import Document
 from app.services.document_service import DocumentService
 from app.models.user import User
 from app.schemas.document import DocumentResponse  
@@ -19,3 +21,19 @@ def upload_document(
     current_user: User = Depends(get_current_user),
 ):
    return DocumentService.save_document(db=db, file=file, owner_id=current_user.id)
+
+@router.get(
+    "",
+    response_model=List[DocumentResponse]
+)
+def get_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    documents = (
+        db.query(Document)
+        .filter(Document.owner_id == current_user.id)
+        .all()
+    )
+
+    return documents
