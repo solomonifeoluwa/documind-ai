@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
@@ -37,3 +37,44 @@ def get_documents(
     )
 
     return documents
+
+@router.get(
+    "/{document_id}",
+    response_model=DocumentResponse
+)
+def get_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.owner_id == current_user.id
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+    return document
+
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    DocumentService.delete_document(
+        db=db,
+        document_id=document_id,
+        owner_id=current_user.id
+    )

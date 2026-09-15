@@ -64,3 +64,31 @@ class DocumentService:
         db.refresh(document)
         
         return document
+
+    @staticmethod
+    def delete_document(
+        db: Session,
+        document_id: int,
+        owner_id: int
+    ) -> None:
+
+        document = (
+            db.query(Document)
+            .filter(
+                Document.id == document_id,
+                Document.owner_id == owner_id
+            )
+            .first()
+        )
+
+        if document is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found."
+            )
+
+        if os.path.exists(document.file_path):
+            os.remove(document.file_path)
+
+        db.delete(document)
+        db.commit()
